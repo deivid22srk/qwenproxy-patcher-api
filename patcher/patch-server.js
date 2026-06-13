@@ -72,5 +72,15 @@ content = content.replace(
   "const { closePlaywright } = await import('../services/playwright.ts')"
 );
 
+// Register chatResponses endpoint for OpenAI Responses API compatibility
+content = content.replace(
+  "import { chatCompletions, chatCompletionsStop } from '../routes/chat.js'",
+  "import { chatCompletions, chatCompletionsStop, chatResponses } from '../routes/chat.js'"
+);
+content = content.replace(
+  "app.post('/v1/chat/completions/stop', chatCompletionsStop)",
+  "app.post('/v1/chat/completions/stop', chatCompletionsStop)\napp.post('/v1/responses', chatResponses)"
+);
+
 fs.writeFileSync(serverPath, content);
 console.log('  → server.ts updated successfully');
