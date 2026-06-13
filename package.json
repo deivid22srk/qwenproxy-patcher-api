@@ -1,0 +1,25 @@
+{
+  "name": "qwenproxy-patcher-api",
+  "version": "1.0.0",
+  "description": "API to patch qwenproxy dynamically and download the cookie-based version as a zip archive.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node node_modules/tsx/dist/cli.mjs src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.3",
+    "archiver": "^7.0.1",
+    "hono": "^4.12.21",
+    "tsx": "^4.22.3"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.2",
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}
