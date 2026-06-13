@@ -1,0 +1,178 @@
+# ============================================================
+# QwenProxy-Cookies Build Workflow
+# ============================================================
+#
+# This workflow runs on a schedule and manually to:
+#   1. Clone the original QwenProxy from pedrofariasx/qwenproxy
+#   2. Check if there are new commits since last patch
+#   3. Apply the patcher to make it work without Playwright
+#   4. Commit and push the patched code to the "Patcher" branch
+#
+# The Patcher branch always contains the latest version of
+# QwenProxy modified to work with cookies instead of Playwright.
+# ============================================================
+
+name: Build Patcher
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force rebuild even if no changes
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-push:
+    name: Patch and Push to Patcher branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check last patched commit from Patcher branch
+        id: last-patch
+        continue-on-error: true
+        run: |
+          git clone --branch Patcher --depth 1 \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            /tmp/last-patcher 2>/dev/null || true
+          if [ -f /tmp/last-patcher/PATCHED_VERSION.md ]; then
+            LAST_SHA=$(grep '^Commit:' /tmp/last-patcher/PATCHED_VERSION.md | awk '{print $NF}')
+            echo "Last patched original commit: $LAST_SHA"
+            echo "LAST_PATCHED_SHA=$LAST_SHA" >> $GITHUB_ENV
+          else
+            echo "No previous Patcher branch found. Will patch fresh."
+            echo "LAST_PATCHED_SHA=" >> $GITHUB_ENV
+          fi
+          rm -rf /tmp/last-patcher
+
+      - name: Clone original QwenProxy
+        uses: actions/checkout@v4
+        with:
+          repository: pedrofariasx/qwenproxy
+          path: qwenproxy-original
+
+      - name: Check for updates
+        id: check-updates
+        run: |
+          cd qwenproxy-original
+          CURRENT_SHA=$(git rev-parse HEAD)
+          echo "Current original SHA: $CURRENT_SHA"
+          echo "CURRENT_ORIGINAL_SHA=$CURRENT_SHA" >> $GITHUB_ENV
+          if [ "${{ github.event.inputs.force }}" == "true" ]; then
+            echo "Force rebuild requested."
+            echo "HAS_UPDATES=true" >> $GITHUB_ENV
+          elif [ "$CURRENT_SHA" == "$LAST_PATCHED_SHA" ]; then
+            echo "No new commits since last patch."
+            echo "HAS_UPDATES=false" >> $GITHUB_ENV
+          else
+            echo "New commits detected!"
+            echo "HAS_UPDATES=true" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout target repo
+        if: env.HAS_UPDATES == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: target-repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply Patcher
+        if: env.HAS_UPDATES == 'true'
+        run: |
+          cd qwenproxy-original
+          ORIGINAL_COMMIT=$(git rev-parse HEAD)
+          ORIGINAL_COMMIT_MSG=$(git log -1 --pretty=%s)
+          echo "Original repo commit: $ORIGINAL_COMMIT"
+          echo "ORIGINAL_COMMIT=$ORIGINAL_COMMIT" >> $GITHUB_ENV
+          echo "ORIGINAL_COMMIT_MSG<<EOF" >> $GITHUB_ENV
+          echo "$ORIGINAL_COMMIT_MSG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          cd ..
+          bash target-repo/patcher/apply-patch.sh qwenproxy-original
+
+      - name: Prepare Patcher branch
+        if: env.HAS_UPDATES == 'true'
+        run: |
+          cd qwenproxy-original
+          rm -f src/services/playwright.ts.playwright-backup
+          rm -rf .github/workflows/ci.yml
+          {
+            echo "# QwenProxy-Cookies (Patched Version)"
+            echo ""
+            echo "This is an automatically patched version of QwenProxy."
+            echo ""
+            echo "## What is different?"
+            echo "- No Playwright required - This version works with cookies only"
+            echo "- Lightweight - No browser automation, no heavy dependencies"
+            echo "- Same API - Fully compatible with the original OpenAI-style API"
+            echo ""
+            echo "## Quick Start"
+            echo ""
+            echo '```bash'
+            echo "# Install dependencies"
+            echo "npm install"
+            echo ""
+            echo "# Import cookies from a Pastebin URL (or any raw cookie URL)"
+            echo "bash import-cookies.sh https://pastebin.com/raw/XXXXXXXX"
+            echo "# Or use npm script:"
+            echo "npm run import-cookies -- https://pastebin.com/raw/XXXXXXXX"
+            echo "# Or set directly via env var:"
+            echo 'export QWEN_COOKIES="cookie1=value1; cookie2=value2"'
+            echo ""
+            echo "# Start the server"
+            echo "npm start"
+            echo '```'
+            echo ""
+            echo '> ⚠️ **Updating an existing clone:** This branch uses `git push -f` (force push),'
+            echo '> so do NOT use `git pull` to update. Instead, run:'
+            echo '> ```bash'
+            echo '> git fetch origin'
+            echo '> git reset --hard origin/Patcher'
+            echo '> ```'
+            echo '> This overwrites local files with the latest patched version.'
+            echo '> **Warning:** Discards local changes. Backup `cookies.json` first.'
+            echo ""
+            echo "## Original Source"
+            echo "- Repo: https://github.com/pedrofariasx/qwenproxy"
+            echo "- Commit: ${ORIGINAL_COMMIT}"
+            echo "- Message: ${ORIGINAL_COMMIT_MSG}"
+            echo "- Patched at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          } > PATCHED_VERSION.md
+          echo "Created PATCHED_VERSION.md"
+
+      - name: Push to Patcher branch
+        if: env.HAS_UPDATES == 'true'
+        run: |
+          cd qwenproxy-original
+          rm -rf .git
+          git init
+          git checkout -b Patcher
+          git config user.name "QwenProxy-Cookies Bot"
+          git config user.email "bot@qwenproxy-cookies"
+          cat > .gitignore << 'GITIGNORE'
+          node_modules/
+          data/
+          qwen_profiles/
+          qwen_profile/
+          *.db
+          .env
+          cookies.json
+          GITIGNORE
+          git add -A
+          git commit -m "Patched QwenProxy at ${ORIGINAL_COMMIT}"
+          git remote add target "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f target Patcher
+
+      - name: No updates available
+        if: env.HAS_UPDATES != 'true'
+        run: |
+          echo "============================================"
+          echo "  No new commits in original QwenProxy."
+          echo "  Patcher branch is up to date."
+          echo "============================================"

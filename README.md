@@ -58,6 +58,46 @@ curl -L -O -J http://localhost:3000/patch
 
 ---
 
+## 🍪 Como Importar os Cookies no Proxy Baixado
+
+Após fazer o download do `.zip` e extrair o projeto em sua máquina/Termux, siga os passos abaixo para configurar os cookies de sessão do Qwen:
+
+### Passo 1: Obter seus Cookies
+1. Acesse [https://chat.qwen.ai](https://chat.qwen.ai) no seu navegador e faça o login.
+2. Abra as Ferramentas do Desenvolvedor (`F12` ou `Ctrl+Shift+I`).
+3. Vá em **Application** (ou **Armazenamento**) &rarr; **Cookies** &rarr; `https://chat.qwen.ai`.
+4. Copie a string completa dos cookies em formato de texto.
+
+### Passo 2: Configurar no Proxy
+Você pode importar os cookies de três formas diferentes:
+
+#### Método A: Importar via URL (Recomendado)
+Você pode salvar seus cookies em uma URL privada (como Pastebin raw ou similar) e importá-los diretamente:
+```bash
+# Executando o script bash diretamente
+bash import-cookies.sh https://sua-url.com/raw-cookies
+
+# Ou usando o script npm
+npm run import-cookies -- https://sua-url.com/raw-cookies
+```
+
+#### Método B: Arquivo `cookies.json`
+Crie um arquivo chamado `cookies.json` na raiz do projeto extraído com a seguinte estrutura:
+```json
+{
+  "cookies": "cole_seus_cookies_aqui",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36..."
+}
+```
+
+#### Método C: Variável de Ambiente `.env`
+Renomeie o `.env.example` para `.env` e cole seus cookies na variável correspondente:
+```env
+QWEN_COOKIES="sua_string_de_cookies_aqui"
+```
+
+---
+
 ## 📁 Estrutura do Projeto
 
 * `src/index.ts`: Ponto de entrada do servidor Hono que gerencia as rotas e o ciclo de vida do patch.
