@@ -98,6 +98,27 @@ QWEN_COOKIES="sua_string_de_cookies_aqui"
 
 ---
 
+## 📥 Clonando e Atualizando a branch Patcher
+
+Se você preferir clonar o código do proxy patcheado diretamente do GitHub (em vez de baixar o arquivo `.zip` da API), utilize a branch `Patcher` do repositório correspondente:
+
+### Clonar a branch Patcher:
+```bash
+git clone -b Patcher https://github.com/deivid22srk/qwenproxy-Cookies.git
+cd qwenproxy-Cookies
+```
+
+### Como Atualizar o Clone Existente:
+Como o repositório é atualizado automaticamente por um workflow usando force-push (`git push -f`), **não utilize `git pull`** para atualizar o seu clone local. Em vez disso, execute os seguintes comandos no terminal:
+
+```bash
+git fetch origin
+git reset --hard origin/Patcher
+```
+> ⚠️ **Atenção:** Isso irá sobrescrever qualquer alteração local que você tiver feito no código do proxy. Faça backup do seu arquivo `cookies.json` antes de rodar o comando.
+
+---
+
 ## 📁 Estrutura do Projeto
 
 * `src/index.ts`: Ponto de entrada do servidor Hono que gerencia as rotas e o ciclo de vida do patch.
