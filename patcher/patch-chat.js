@@ -207,6 +207,7 @@ export async function chatResponses(c: Context) {
         })}\\n\\n\`);
 
         let buffer = '';
+        let isThinking = false;
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -230,13 +231,37 @@ export async function chatResponses(c: Context) {
                 const deltaObj = chunk.choices?.[0]?.delta;
                 
                 if (deltaObj) {
-                  if (deltaObj.content) {
+                  if (deltaObj.reasoning_content) {
+                    let textToWrite = '';
+                    if (!isThinking) {
+                      textToWrite += '<think>\\n';
+                      isThinking = true;
+                    }
+                    textToWrite += deltaObj.reasoning_content;
+                    
                     streamWriter.write(\`data: \${JSON.stringify({
                       type: 'response.output_text.delta',
                       item_id: assistantMsgId,
                       output_index: 0,
                       content_index: 0,
-                      delta: deltaObj.content
+                      delta: textToWrite
+                    })}\\n\\n\`);
+                  }
+                  
+                  if (deltaObj.content) {
+                    let textToWrite = '';
+                    if (isThinking) {
+                      textToWrite += '\\n</think>\\n';
+                      isThinking = false;
+                    }
+                    textToWrite += deltaObj.content;
+                    
+                    streamWriter.write(\`data: \${JSON.stringify({
+                      type: 'response.output_text.delta',
+                      item_id: assistantMsgId,
+                      output_index: 0,
+                      content_index: 0,
+                      delta: textToWrite
                     })}\\n\\n\`);
                   }
                 }
