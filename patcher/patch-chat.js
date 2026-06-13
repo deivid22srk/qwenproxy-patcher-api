@@ -273,5 +273,11 @@ export async function chatResponses(c: Context) {
 
 content += chatResponsesCode;
 
+// Add safety check to prevent crash during tool formatting if t.function is undefined
+content = content.replace(
+  "if (t.type === 'function') {",
+  "if (t.type === 'function' && t.function) {"
+);
+
 fs.writeFileSync(chatPath, content);
 console.log('  → chat.ts updated successfully');
