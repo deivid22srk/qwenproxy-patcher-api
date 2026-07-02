@@ -1,0 +1,7 @@
+node_modules/
+data/
+qwen_profiles/
+qwen_profile/
+*.db
+.env
+cookies.json
